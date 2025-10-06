@@ -117,23 +117,6 @@ Please follow standard [GitHub Flow](https://guides.github.com/introduction/flow
 
 ---
 
-## 📸 Optional Demo
-
-You can include a short GIF or screenshot demo here:
-```
-/demo/demo.gif
-```
-*(e.g. drag a GIF showing the conversion process)*
-
----
-
-## 🪪 License
-
-This project is licensed under the **MIT License**.  
-You are free to use, modify, and distribute it — credit is appreciated. 💙
-
----
-
 ### ✨ Author
 
 Created by **İbrahim Emir Akman**  
