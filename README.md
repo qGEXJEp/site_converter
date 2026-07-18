@@ -111,7 +111,7 @@ site_offline/
 
 Contributions, ideas, and pull requests are always welcome!  
 To report bugs or suggest features, open an issue here:  
-👉 [https://github.com/qGEXJEp/site-converter/issues](https://github.com/qGEXJEp/site-converter/issues)
+👉 [https://github.com/iemirakman/site-converter/issues](https://github.com/qGEXJEp/site-converter/issues)
 
 Please follow standard [GitHub Flow](https://guides.github.com/introduction/flow/) for contributions.
 
@@ -121,7 +121,7 @@ Please follow standard [GitHub Flow](https://guides.github.com/introduction/flow
 
 Created by **İbrahim Emir Akman**  
 📧 Email: i.emir.ak01@gmail.com  
-🐙 GitHub: [https://github.com/qGEXJEp](https://github.com/qGEXJEp)
+🐙 GitHub: [https://github.com/iemirakman](https://github.com/iemirakman)
 
 ---
 
