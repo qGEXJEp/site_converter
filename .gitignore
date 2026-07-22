@@ -1,0 +1,4 @@
+venv/
+offline_assets/
+__pycache__/
+*.pyc
