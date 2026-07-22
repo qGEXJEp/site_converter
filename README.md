@@ -32,7 +32,7 @@ Make sure you have **Python 3.8+** installed.
 pip install requests beautifulsoup4 tqdm
 
 # Clone the repository
-git clone https://github.com/qGEXJEp/site-converter.git
+git clone https://github.com/iemirakman/site-converter.git
 cd site-converter
 ```
 
