@@ -2,3 +2,4 @@ venv/
 offline_assets/
 __pycache__/
 *.pyc
+.DS_Store
