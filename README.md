@@ -120,7 +120,7 @@ Please follow standard [GitHub Flow](https://guides.github.com/introduction/flow
 ### ✨ Author
 
 Created by **İbrahim Emir Akman**  
-📧 Email: i.emir.ak01@gmail.com  
+📧 Email: iemirakman@icloud.com 
 🐙 GitHub: [https://github.com/iemirakman](https://github.com/iemirakman)
 
 ---
