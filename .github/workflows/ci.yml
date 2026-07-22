@@ -19,10 +19,12 @@ jobs:
       with:
         python-version: "3.11"
 
-    - name: Bağımlılıkları, Linter ve Pytest'i Kur
+    - name: Bağımlılıkları ve Test Araçlarını Kur
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest pytest-asyncio
+        # Projeyi editable modda kurarak import hatalarını kökten çözüyoruz
+        pip install -e .
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Flake8 ile Kod Kalitesi Denetimi (Linting)
