@@ -23,8 +23,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest pytest-asyncio
-        # Projeyi editable modda kurarak import hatalarını kökten çözüyoruz
-        pip install -e .
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Flake8 ile Kod Kalitesi Denetimi (Linting)
@@ -34,4 +32,5 @@ jobs:
 
     - name: Pytest ile İş Mantığı Testleri
       run: |
-        pytest tests/
+        # PYTHONPATH'i kök dizin olarak ayarlayarak import hatalarını çözüyoruz
+        PYTHONPATH=. pytest tests/
