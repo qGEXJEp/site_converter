@@ -1,128 +1,82 @@
-# 🧩 Site Converter — Make Any Website Work Offline
+# Site Converter
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.8%2B-blue?logo=python" alt="Python Version">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/Status-Stable-success" alt="Status">
-</p>
+<div align="center">
+  <img src="[https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)" alt="Python Version">
+  <img src="[https://img.shields.io/badge/License-MIT-green?style=flat-square](https://img.shields.io/badge/License-MIT-green?style=flat-square)" alt="License">
+  <img src="[https://img.shields.io/pypi/v/site-converter?style=flat-square&color=orange](https://img.shields.io/pypi/v/site-converter?style=flat-square&color=orange)" alt="PyPI">
+</div>
 
-**Site Converter** is a Python tool that automatically scans any website, detects all embedded resources (images, videos, fonts, CSS, JS, etc.), downloads them to your computer, and updates all links inside the HTML file so the website can work **completely offline**.
+## Overview
+**Site Converter** is a production-ready, highly concurrent command-line utility designed to archive web pages and convert them into fully functional, offline-ready static assets. The engine automatically traverses a given URL, downloads all embedded resources (images, stylesheets, scripts, and fonts), and rewrites HTML references to local paths.
 
-Perfect for archiving, research, or creating backups of static websites. 🌍💾
-
----
-
-## 🚀 Features
-
-- 🌐 Automatically detects **all embedded links and assets**  
-- 💾 Downloads images, fonts, CSS, JS, and media to local folders  
-- 🔗 Rewrites HTML references to **local paths**  
-- 🧠 Smart file renaming system prevents duplication or conflicts  
-- ⚡ Simple command-line interface  
-- 💻 Works cross-platform (Windows, macOS, Linux)
+This version marks a complete architectural rewrite, moving from synchronous blocking scripts to a fully asynchronous, `lxml`-powered parser for maximum performance and zero memory leakage.
 
 ---
 
-## ⚙️ Installation
+## Features
 
-Make sure you have **Python 3.8+** installed.
-
-```bash
-# Install required libraries
-pip install requests beautifulsoup4 tqdm
-
-# Clone the repository
-git clone https://github.com/iemirakman/site-converter.git
-cd site-converter
-```
+- **Asynchronous Engine:** Built on `asyncio` and `aiofiles` for blazing-fast, non-blocking I/O operations.
+- **Deep Asset Detection:** Automatically parses and extracts embedded links, scripts, stylesheets, and media files.
+- **Local Path Rewriting:** Modifies DOM elements in the HTML to point exclusively to downloaded local assets.
+- **CLI Native:** Globally installable package that acts as a native terminal command.
 
 ---
 
-## 🧭 Usage
+## Installation
 
-Convert any online website into a fully offline version with one command:
+Ensure you have **Python 3.8 or higher** installed. Since `v2.0.0`, Site Converter is officially available on PyPI. Install it globally with a single command:
 
-```bash
-python site_converter.py https://www.example.com
-```
-
-When finished, you’ll find the offline site inside a folder named `site_offline/`.
-
-### Example Output
-```
-[INFO] Starting download from https://example.com
-[✔] Downloaded: 34 images, 8 CSS files, 5 JS scripts
-✅ Done! Open 'site_offline/index_offline.html' in your browser.
-```
+    pip install site-converter
 
 ---
 
-## 🗂️ Folder Structure
+## Usage
 
-```
-site_offline/
-│
-├── index_offline.html      # Offline-ready HTML
-├── images/                 # All image assets
-├── scripts/                # JavaScript files
-└── styles/                 # CSS stylesheets
-```
+You no longer need to clone the repository or run python scripts manually. Just execute the native command from anywhere in your terminal:
 
----
+    site-converter [https://www.example.com](https://www.example.com)
 
-## ⚠️ Known Issues
+Upon completion, the offline version of the site will be generated in the `site_offline/` directory in your current working path. Open `site_offline/index_offline.html` in any web browser to view the result.
 
-| Issue | Description |
-|-------|--------------|
-| 🌀 Dynamic Frameworks | React / Vue / Angular apps may not render offline correctly |
-| 🔐 Protected Assets | CORS or login-protected files may fail to download |
-| ⏳ Large Websites | For very large sites, downloading might take a long time |
+### Directory Structure
+
+    site_offline/
+    ├── index_offline.html      # Processed, offline-ready HTML file
+    ├── images/                 # Downloaded image assets
+    ├── scripts/                # Extracted JavaScript files
+    └── styles/                 # Downloaded CSS stylesheets
 
 ---
 
-## 💡 Tips & Tricks
+## Limitations
 
-- Open `index_offline.html` in your browser to test the offline version  
-- If some assets aren’t appearing, edit `base_url` or the `replace_links()` function in the source code  
-- For automation, you can easily wrap this tool into your own scripts or schedulers  
-
----
-
-## ⚖️ Legal Notice
-
-> **Disclaimer:**  
-> This tool is intended for **personal, educational, or authorized use only**.  
-> Do **not** use it to download, copy, or redistribute copyrighted websites or content without permission.  
-> The developer assumes **no responsibility** for any misuse or violation of terms of service by third parties.  
->  
-> ✅ You are free to use this tool to:
-> - Back up your own websites  
-> - Work on authorized or open-source projects  
-> - Study or test static site structures  
->  
-> 🚫 Do not use it to:
-> - Copy or mirror commercial or copyrighted websites  
-> - Circumvent login systems, paywalls, or digital protections  
-> - Redistribute downloaded content publicly
+| Constraint | Description |
+| :--- | :--- |
+| **Dynamic Frameworks** | Applications heavily reliant on Client-Side Rendering (React, Vue, Angular) may not render correctly offline. |
+| **Authentication & CORS** | Assets protected by paywalls, login sessions, or strict CORS policies will fail to download. |
 
 ---
 
-## 🤝 Contributing
+## Legal Notice & Disclaimer
 
-Contributions, ideas, and pull requests are always welcome!  
-To report bugs or suggest features, open an issue here:  
-👉 [https://github.com/iemirakman/site-converter/issues](https://github.com/qGEXJEp/site-converter/issues)
+This software is provided for **educational, personal archiving, and authorized research purposes only**. 
 
-Please follow standard [GitHub Flow](https://guides.github.com/introduction/flow/) for contributions.
+The developer assumes **no responsibility** for any misuse, copyright infringement, or violation of terms of service committed by third parties. You are explicitly prohibited from using this tool to bypass authentication mechanisms, digital rights management (DRM), or to illegally mirror and redistribute commercial properties. 
 
 ---
 
-### ✨ Author
+## Contributing
 
-Created by **İbrahim Emir Akman**  
-📧 Email: iemirakman@icloud.com 
-🐙 GitHub: [https://github.com/iemirakman](https://github.com/iemirakman)
+Contributions are welcome. If you find a bug or have a feature request, please follow standard GitHub Flow and open an issue:
+
+- **Issue Tracker:** [https://github.com/iemirakman/site-converter/issues](https://github.com/iemirakman/site-converter/issues)
 
 ---
 
-⭐ If you find this project useful, don’t forget to **star** the repository!
+## License & Author
+
+- **Author:** İbrahim Emir Akman
+- **Email:** iemirakman@icloud.com
+- **GitHub:** [@iemirakman](https://github.com/iemirakman)
+
+Distributed under the MIT License. See `LICENSE` for more information.
