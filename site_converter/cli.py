@@ -1,45 +1,57 @@
-import argparse
+import sys
 import asyncio
+import argparse
 import logging
+
 from .parser import SiteParser
 
-def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+# CLI için temiz ve profesyonel bir log formatı
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
+
+async def run_async(url: str, output_dir: str):
+    # Asenkron motoru başlat
+    parser = SiteParser(output_dir=output_dir)
+    await parser.process_site(url)
 
 def main():
-    setup_logging()
-
     parser = argparse.ArgumentParser(
-        description="Convert a website into an offline-ready format asynchronously.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Site Converter — Make Any Website Work Offline",
+        epilog="Created by İbrahim Emir Akman | github.com/iemirakman"
     )
-
+    
+    # Zorunlu URL argümanı
     parser.add_argument(
-        "url",
-        type=str,
-        help="The target website URL (e.g., https://example.com) or local HTML file path."
+        "url", 
+        help="Çevrimdışı kaydedilecek web sitesinin tam adresi (örn: https://example.com)"
     )
-
+    
+    # Opsiyonel çıkış klasörü parametresi (-o veya --output)
     parser.add_argument(
-        "-o", "--output",
-        type=str,
-        default="site_offline",
-        help="Target output directory for offline assets."
+        "-o", "--output", 
+        default="offline_site", 
+        help="Dosyaların kaydedileceği klasör (varsayılan: offline_site)"
     )
-
+    
     args = parser.parse_args()
-    parser_logic = SiteParser(output_dir=args.output)
 
+    # Basit güvenlik kontrolü
+    if not args.url.startswith("http"):
+        logger.error("[HATA] URL 'http://' veya 'https://' ile başlamalıdır.")
+        sys.exit(1)
+
+    logger.info(f"🚀 Başlatılıyor: {args.url}")
+    logger.info(f"📂 Hedef Klasör: {args.output}\n" + "-"*40)
+    
     try:
-        asyncio.run(parser_logic.process_site(args.url))
+        # Asenkron döngüyü CLI'dan güvenle tetikle
+        asyncio.run(run_async(args.url, args.output))
     except KeyboardInterrupt:
-        logging.info("Process interrupted by user.")
+        logger.warning("\n[!] İşlem kullanıcı tarafından iptal edildi.")
+        sys.exit(1)
     except Exception as e:
-        logging.error(f"Execution failed: {e}", exc_info=True)
+        logger.error(f"\n[!] Beklenmeyen kritik bir hata oluştu: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

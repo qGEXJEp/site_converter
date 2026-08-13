@@ -2,40 +2,171 @@ import os
 import re
 import asyncio
 import logging
+import aiofiles
 import aiohttp
-from bs4 import BeautifulSoup
-from typing import List, Tuple, Set, Dict, Any
+import lxml.html
+from typing import List, Tuple, Set, Dict, Any, Optional
 
 from .config import DIRS, SOCIAL_DOMAINS, TECHNICAL_PATTERNS, EXTERNAL_WHITELIST
 from .downloader import AsyncDownloader
 
 logger = logging.getLogger(__name__)
 
+def _parse_and_transform_html(
+    html_content: str, url_to_local: Optional[Dict[str, str]] = None
+) -> Tuple[str, Set[Tuple[str, str]]]:
+    """
+    CPU-bound synchronous worker function for parsing HTML using lxml.
+    Performs single-pass DOM traversal over all elements.
+
+    If url_to_local is None, returns (html_content_unchanged, download_queue).
+    If url_to_local is provided, updates attributes/content in DOM and returns (serialized_html, download_queue).
+    """
+    try:
+        doc = lxml.html.fromstring(html_content)
+    except Exception as e:
+        logger.error(f"Failed to parse HTML with lxml: {e}")
+        return html_content, set()
+
+    download_queue: Set[Tuple[str, str]] = set()
+
+    # Pre-compile URL regex for inline scripts and styles if needed
+    url_pattern = re.compile(r'https?://[^\s"\'<>]+')
+    style_url_pattern = re.compile(r'url\([\'"]?(https?://[^\)\'"]+)[\'"]?\)')
+
+    # 1. Single-pass iteration over all DOM elements
+    for elem in doc.iter():
+        tag = elem.tag
+        if not isinstance(tag, str):
+            # Comments, processing instructions, etc.
+            continue
+
+        tag_name = tag.lower()
+
+        # Handle specific header tags cleaning
+        if tag_name == "link":
+            rel = elem.get("rel", "")
+            if isinstance(rel, str) and rel.lower() == "preconnect":
+                parent = elem.getparent()
+                if parent is not None:
+                    parent.remove(elem)
+                continue
+            if isinstance(rel, str) and rel.lower() == "canonical":
+                elem.set("href", "")
+
+        elif tag_name == "meta":
+            prop = elem.get("property", "")
+            if isinstance(prop, str) and prop.lower() == "og:url":
+                elem.set("content", "")
+            elif "content" in elem.attrib and elem.attrib["content"].startswith("http"):
+                url = elem.attrib["content"]
+                folder = _classify_url_static(url)
+                download_queue.add((url, folder))
+                if url_to_local and url in url_to_local:
+                    elem.attrib["content"] = url_to_local[url]
+
+        # Handle src and href attributes for standard tags
+        if tag_name in ("link", "script", "img", "video", "source"):
+            attr = "href" if tag_name == "link" else "src"
+            if attr in elem.attrib and elem.attrib[attr].startswith("http"):
+                url = elem.attrib[attr]
+                folder = _classify_url_static(url)
+                download_queue.add((url, folder))
+                if url_to_local and url in url_to_local:
+                    elem.attrib[attr] = url_to_local[url]
+
+        # Handle srcset attribute
+        if tag_name in ("img", "source") and "srcset" in elem.attrib:
+            srcset_val = elem.attrib["srcset"]
+            raw_entries = [u.strip() for u in srcset_val.split(",") if u.strip()]
+            new_entries = []
+
+            for entry in raw_entries:
+                parts = entry.split()
+                if not parts:
+                    continue
+                url = parts[0]
+                size = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+                if url.startswith("http"):
+                    folder = _classify_url_static(url)
+                    download_queue.add((url, folder))
+
+                    if url_to_local and url in url_to_local:
+                        local_url = url_to_local[url]
+                        new_entries.append(f"{local_url} {size}".strip())
+                    else:
+                        new_entries.append(entry)
+                else:
+                    new_entries.append(entry)
+
+            if url_to_local and new_entries:
+                elem.attrib["srcset"] = ", ".join(new_entries)
+
+        # Handle inline <style> elements
+        if tag_name == "style" and elem.text:
+            css_text = elem.text
+            if "url(" in css_text:
+                matches = style_url_pattern.findall(css_text)
+                for url in matches:
+                    folder = _classify_url_static(url)
+                    download_queue.add((url, folder))
+
+                if url_to_local:
+                    new_css = css_text
+                    for url in matches:
+                        if url in url_to_local:
+                            new_css = new_css.replace(url, url_to_local[url])
+                    elem.text = new_css
+
+        # Handle inline <script> elements
+        if tag_name == "script" and elem.text:
+            js_text = elem.text
+            if "http" in js_text:
+                matches = url_pattern.findall(js_text)
+                for match in matches:
+                    folder = _classify_url_static(match)
+                    download_queue.add((match, folder))
+
+                if url_to_local:
+                    new_js = js_text
+                    for match in matches:
+                        if match in url_to_local:
+                            new_js = new_js.replace(match, url_to_local[match])
+                    elem.text = new_js
+
+    # Serialize back to HTML string safely
+    serialized_html = lxml.html.tostring(doc, encoding="utf-8", method="html").decode("utf-8")
+    return serialized_html, download_queue
+
+def _classify_url_static(url: str) -> str:
+    lower_url = url.lower().split("?")[0]
+    for folder, exts in DIRS.items():
+        for ext in exts:
+            if lower_url.endswith(f".{ext}"):
+                return folder
+
+    if any(x in lower_url for x in [".mp4", ".webm"]):
+        return "videos"
+    if ".js" in lower_url or "events.framer.com" in lower_url:
+        return "scripts"
+    if ".css" in lower_url:
+        return "css"
+    if ".json" in lower_url:
+        return "json"
+
+    image_exts = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"]
+    if any(x in lower_url for x in image_exts):
+        return "images"
+
+    return "misc"
+
 class SiteParser:
     def __init__(self, output_dir: str):
         self.output_dir: str = output_dir
 
     def classify_url(self, url: str) -> str:
-        lower_url = url.lower().split("?")[0]
-        for folder, exts in DIRS.items():
-            for ext in exts:
-                if lower_url.endswith(f".{ext}"):
-                    return folder
-
-        if any(x in lower_url for x in [".mp4", ".webm"]):
-            return "videos"
-        if ".js" in lower_url or "events.framer.com" in lower_url:
-            return "scripts"
-        if ".css" in lower_url:
-            return "css"
-        if ".json" in lower_url:
-            return "json"
-
-        image_exts = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"]
-        if any(x in lower_url for x in image_exts):
-            return "images"
-
-        return "misc"
+        return _classify_url_static(url)
 
     def categorize_external_url(self, url: str) -> str:
         lower_url = url.lower()
@@ -98,82 +229,13 @@ class SiteParser:
 
     async def process_site(self, target: str) -> None:
         html_content = await self.fetch_input(target)
-        soup = BeautifulSoup(html_content, "html.parser")
 
-        # Strip specific header tags
-        for tag in soup.find_all("link", rel="preconnect"):
-            tag.decompose()
-        for tag in soup.find_all("link", rel="canonical"):
-            tag["href"] = ""
-        for tag in soup.find_all("meta", property="og:url"):
-            tag["content"] = ""
+        # 1. Parse HTML and extract download queue in a thread pool (Event Loop Isolation)
+        _, download_queue = await asyncio.to_thread(_parse_and_transform_html, html_content, None)
 
-        download_queue: Set[Tuple[str, str]] = set() # (url, folder)
-        tag_replacements: List[Tuple[Any, str, str]] = [] # (tag_object, attribute, original_url)
+        logger.info(f"Identified {len(download_queue)} unique assets. Starting concurrent download phase.")
 
-        # 1. Base Attributes (src & href)
-        for tag in soup.find_all(["link", "script", "img", "video", "source"]):
-            attr = "href" if tag.name == "link" else "src"
-            if tag.has_attr(attr) and tag[attr].startswith("http"):
-                url = tag[attr]
-                folder = self.classify_url(url)
-                download_queue.add((url, folder))
-                tag_replacements.append((tag, attr, url))
-
-        # 2. Meta tags
-        for tag in soup.find_all("meta"):
-            if tag.has_attr("content") and tag["content"].startswith("http"):
-                url = tag["content"]
-                folder = self.classify_url(url)
-                download_queue.add((url, folder))
-                tag_replacements.append((tag, "content", url))
-
-        # 3. 'srcset' parsing
-        srcset_tasks: List[Tuple[Any, List[Dict[str, str]]]] = []
-        for tag in soup.find_all(["img", "source"]):
-            if tag.has_attr("srcset"):
-                raw_urls = [u.strip() for u in tag["srcset"].split(",")]
-                parsed_urls: List[Dict[str, Any]] = []
-                for u in raw_urls:
-                    parts = u.split()
-                    if not parts:
-                        continue
-                    url = parts[0]
-                    size = " ".join(parts[1:]) if len(parts) > 1 else ""
-                    if url.startswith("http"):
-                        folder = self.classify_url(url)
-                        download_queue.add((url, folder))
-                        parsed_urls.append({"url": url, "size": size, "original": u})
-                    else:
-                        parsed_urls.append({"url": url, "size": size, "original": u, "skip": True})
-                srcset_tasks.append((tag, parsed_urls))
-
-        # 4. Inline <style> blocks
-        style_tasks: List[Tuple[Any, str, List[str]]] = []
-        for style in soup.find_all("style"):
-            if style.string and "url(" in style.string:
-                css = style.string
-                # Regex fetches any valid URL wrapped in url('...')
-                urls = re.findall(r'url\([\'"]?(https?://[^\)\'"]+)[\'"]?\)', css)
-                for url in urls:
-                    folder = self.classify_url(url)
-                    download_queue.add((url, folder))
-                style_tasks.append((style, css, urls))
-
-        # 5. Inline <script> blocks
-        script_tasks: List[Tuple[Any, str, List[str]]] = []
-        url_pattern = re.compile(r'https?://[^\s"\'<>]+')
-        for script in soup.find_all("script"):
-            if script.string and "http" in script.string:
-                matches = url_pattern.findall(script.string)
-                for match in matches:
-                    folder = self.classify_url(match)
-                    download_queue.add((match, folder))
-                script_tasks.append((script, script.string, matches))
-
-        logger.info(f"Identified {len(download_queue)} unique assets. Starting concurrent download phase...")
-
-        # Initiate Concurrent Downloads
+        # 2. Initiate Concurrent Downloads
         url_to_local: Dict[str, str] = {}
         async with AsyncDownloader(self.output_dir) as downloader:
             queue_list = list(download_queue)
@@ -183,39 +245,14 @@ class SiteParser:
                 if local_path:
                     url_to_local[url] = local_path
 
-        # Apply Tag Changes with local cache values
-        for tag, attr, url in tag_replacements:
-            if url in url_to_local:
-                tag[attr] = url_to_local[url]
+        # 3. Apply local URL replacements and serialize in a thread pool (Event Loop Isolation)
+        transformed_html, _ = await asyncio.to_thread(_parse_and_transform_html, html_content, url_to_local)
 
-        for tag, parsed_urls in srcset_tasks:
-            new_urls = []
-            for item in parsed_urls:
-                if item.get("skip") or item["url"] not in url_to_local:
-                    new_urls.append(item["original"])
-                else:
-                    new_urls.append(f"{url_to_local[item['url']]} {item['size']}".strip())
-            tag["srcset"] = ", ".join(new_urls)
-
-        for style, css, urls in style_tasks:
-            new_css = css
-            for url in urls:
-                if url in url_to_local:
-                    new_css = new_css.replace(url, url_to_local[url])
-            style.string.replace_with(new_css)
-
-        for script, code, urls in script_tasks:
-            new_code = code
-            for match in urls:
-                if match in url_to_local:
-                    new_code = new_code.replace(match, url_to_local[match])
-            script.string.replace_with(new_code)
-
-        # Output the parsed offline document
+        # 4. Output the parsed offline document
         os.makedirs(self.output_dir, exist_ok=True)
         out_html = os.path.join(self.output_dir, "index_offline.html")
         with open(out_html, "w", encoding="utf-8") as f:
-            f.write(str(soup.prettify()))
+            f.write(transformed_html)
 
         logger.info(f"✅ Conversion complete! Offline site successfully saved to '{out_html}'")
-        self.report_links(str(soup))
+        self.report_links(transformed_html)
