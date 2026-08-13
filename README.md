@@ -1,10 +1,8 @@
 # Site Converter
 
-<div align="center">
-  <img src="[https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python)" alt="Python Version">
-  <img src="[https://img.shields.io/badge/License-MIT-green?style=flat-square](https://img.shields.io/badge/License-MIT-green?style=flat-square)" alt="License">
-  <img src="[https://img.shields.io/pypi/v/site-converter?style=flat-square&color=orange](https://img.shields.io/pypi/v/site-converter?style=flat-square&color=orange)" alt="PyPI">
-</div>
+[![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python&logoColor=white)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/site-converter?color=orange)](https://pypi.org/project/site-converter/)
 
 ## Overview
 **Site Converter** is a production-ready, highly concurrent command-line utility designed to archive web pages and convert them into fully functional, offline-ready static assets. The engine automatically traverses a given URL, downloads all embedded resources (images, stylesheets, scripts, and fonts), and rewrites HTML references to local paths.
